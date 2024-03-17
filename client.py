@@ -42,6 +42,7 @@ def generate_random_string(length=5):
 
 
 def receive_messages(client_socket, client_name):
+    print(f"Welcome {client_name}!")
     while True:
         try:
             header = client_socket.recv(HEADER_LENGTH)
@@ -64,14 +65,12 @@ def receive_messages(client_socket, client_name):
             )
             print(colored_message)
 
-            # print(message.decode("utf-8"))
-
         except Exception as e:
             print(f"Error receiving message: {e}")
             break
 
 
-def send_messages(client_socket, client_name):
+def send_messages(client_socket, _client_name):
     while True:
         message = input()
         if message:
