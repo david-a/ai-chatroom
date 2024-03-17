@@ -31,8 +31,16 @@ while True:
             client_socket, client_address = server_socket.accept()
             client_socket.setblocking(False)
             sockets_list.append(client_socket)
-            clients[client_socket] = client_address
-            print(f"Accepted new connection from {client_address}")
+
+            # Receive the client name
+            client_name_header = client_socket.recv(HEADER_LENGTH)
+            client_name_length = int(client_name_header.decode("utf-8").strip())
+            client_name = client_socket.recv(client_name_length).decode("utf-8")
+
+            clients[client_socket] = (client_address, client_name)
+            print(
+                f"Accepted new connection from {client_address} (Client: {client_name})"
+            )
 
         else:
             # Receive data from the client
@@ -48,9 +56,16 @@ while True:
                 message = notified_socket.recv(message_length)
 
                 # Broadcast the message to all other clients
+                client_address, client_name = clients[notified_socket]
+                broadcast_message = f"{client_name}: {message.decode('utf-8')}"
+                broadcast_header = f"{len(broadcast_message):<{HEADER_LENGTH}}".encode(
+                    "utf-8"
+                )
                 for client_socket in clients:
                     if client_socket != notified_socket:
-                        client_socket.sendall(header + message)
+                        client_socket.sendall(
+                            broadcast_header + broadcast_message.encode("utf-8")
+                        )
 
             except Exception as e:
                 print(f"Error handling client: {e}")

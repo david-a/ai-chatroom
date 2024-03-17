@@ -1,12 +1,20 @@
 import socket
 import threading
+import sys
+import random
+import string
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 8000
 HEADER_LENGTH = 10
 
 
-def receive_messages(client_socket):
+def generate_random_string(length=5):
+    characters = string.ascii_letters + string.digits
+    return "".join(random.choice(characters) for _ in range(length))
+
+
+def receive_messages(client_socket, client_name):
     while True:
         try:
             header = client_socket.recv(HEADER_LENGTH)
@@ -23,7 +31,7 @@ def receive_messages(client_socket):
             break
 
 
-def send_messages(client_socket):
+def send_messages(client_socket, client_name):
     while True:
         message = input()
         if message:
@@ -32,23 +40,38 @@ def send_messages(client_socket):
             client_socket.sendall(header + message.encode("utf-8"))
 
 
-# Create a socket object
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+if __name__ == "__main__":
+    # Get the client name from command line argument or use a default name
+    if len(sys.argv) > 1:
+        client_name = sys.argv[1]
+    else:
+        client_name = f"Client-{generate_random_string()}"
 
-# Connect to the server
-client_socket.connect((SERVER_HOST, SERVER_PORT))
-print(f"Connected to {SERVER_HOST}:{SERVER_PORT}")
+    # Create a socket object
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Start threads for sending and receiving messages
-receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-send_thread = threading.Thread(target=send_messages, args=(client_socket,))
+    # Connect to the server
+    client_socket.connect((SERVER_HOST, SERVER_PORT))
+    print(f"Connected to {SERVER_HOST}:{SERVER_PORT}")
 
-receive_thread.start()
-send_thread.start()
+    # Send the client name to the server
+    client_name_header = f"{len(client_name):<{HEADER_LENGTH}}".encode("utf-8")
+    client_socket.sendall(client_name_header + client_name.encode("utf-8"))
 
-# Wait for threads to finish
-receive_thread.join()
-send_thread.join()
+    # Start threads for sending and receiving messages
+    receive_thread = threading.Thread(
+        target=receive_messages, args=(client_socket, client_name)
+    )
+    send_thread = threading.Thread(
+        target=send_messages, args=(client_socket, client_name)
+    )
 
-# Close the socket
-client_socket.close()
+    receive_thread.start()
+    send_thread.start()
+
+    # Wait for threads to finish
+    receive_thread.join()
+    send_thread.join()
+
+    # Close the socket
+    client_socket.close()
