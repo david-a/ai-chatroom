@@ -33,14 +33,22 @@ while True:
             sockets_list.append(client_socket)
 
             # Receive the client name
-            client_name_header = client_socket.recv(HEADER_LENGTH)
-            client_name_length = int(client_name_header.decode("utf-8").strip())
-            client_name = client_socket.recv(client_name_length).decode("utf-8")
-
-            clients[client_socket] = (client_address, client_name)
-            print(
-                f"Accepted new connection from {client_address} (Client: {client_name})"
-            )
+            try:
+                client_name_header = client_socket.recv(HEADER_LENGTH)
+                client_name_length = int(client_name_header.decode("utf-8").strip())
+                client_name = client_socket.recv(client_name_length).decode("utf-8")
+                clients[client_socket] = (client_address, client_name)
+                print(
+                    f"Accepted new connection from {client_address} (Client: {client_name})"
+                )
+            except BlockingIOError:
+                # Handle the blocking error by skipping this client
+                sockets_list.remove(client_socket)
+                client_socket.close()
+                print(
+                    f"Connection from {client_address} failed due to a blocking error"
+                )
+                continue
 
         else:
             # Receive data from the client
@@ -63,14 +71,27 @@ while True:
                 )
                 for client_socket in clients:
                     if client_socket != notified_socket:
-                        client_socket.sendall(
-                            broadcast_header + broadcast_message.encode("utf-8")
-                        )
+                        try:
+                            client_socket.sendall(
+                                broadcast_header + broadcast_message.encode("utf-8")
+                            )
+                        except BlockingIOError:
+                            # Handle the blocking error by skipping this client
+                            sockets_list.remove(client_socket)
+                            client_socket.close()
+                            del clients[client_socket]
+                            print(
+                                f"Connection to {clients[client_socket][0]} failed due to a blocking error"
+                            )
 
-            except Exception as e:
-                print(f"Error handling client: {e}")
+            except BlockingIOError:
+                # Handle the blocking error by skipping this client
                 sockets_list.remove(notified_socket)
                 del clients[notified_socket]
+                notified_socket.close()
+                print(
+                    f"Connection to {clients[notified_socket][0]} failed due to a blocking error"
+                )
                 continue
 
     for notified_socket in exception_sockets:
