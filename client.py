@@ -1,69 +1,28 @@
-import hashlib
 import socket
 import threading
 import sys
-import random
-import string
-from colorama import Fore, Style
+
+from utils import (
+    sender_colored_message,
+    encode_message,
+    generate_random_string,
+    receive_message,
+)
 
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 8000
-HEADER_LENGTH = 10
 
 
-def get_color_from_name(name):
-    """
-    Generates a consistent color for a given name using a hash function.
-    """
-    # Convert the name to bytes and hash it using SHA-256
-    name_bytes = name.encode("utf-8")
-    name_hash = hashlib.sha256(name_bytes).hexdigest()
-
-    # Map the hash to a color using the hash value modulo the number of colors
-    colors = [
-        Fore.RED,
-        Fore.GREEN,
-        Fore.YELLOW,
-        Fore.BLUE,
-        Fore.MAGENTA,
-        Fore.CYAN,
-        Fore.WHITE,
-    ]
-    color_index = int(name_hash, 16) % len(colors)
-    color_code = colors[color_index]
-
-    return color_code
-
-
-def generate_random_string(length=5):
-    characters = string.ascii_letters + string.digits
-    return "".join(random.choice(characters) for _ in range(length))
-
-
-def receive_messages(client_socket, client_name):
-    print(f"Welcome {client_name}!")
+def receive_messages(client_socket, _client_name):
     while True:
         try:
-            header = client_socket.recv(HEADER_LENGTH)
-            if not header:
+            message = receive_message(client_socket)
+            if message is False:
                 print("Connection closed by the server")
                 break
 
-            message_length = int(header.decode("utf-8").strip())
-            message = client_socket.recv(message_length)
-
-            # Extract the sender name from the message
-            sender_name, message_content = message.decode("utf-8").split(": ", 1)
-
-            # Get the color for the sender using the mapping function
-            sender_color = get_color_from_name(sender_name)
-
-            # Color the message based on the sender
-            colored_message = (
-                f"{sender_color}{sender_name}: {message_content}{Style.RESET_ALL}"
-            )
-            print(colored_message)
+            print(sender_colored_message(*message.split(": ", 1)))
 
         except Exception as e:
             print(f"Error receiving message: {e}")
@@ -74,9 +33,7 @@ def send_messages(client_socket, _client_name):
     while True:
         message = input()
         if message:
-            message_length = len(message)
-            header = f"{message_length:<{HEADER_LENGTH}}".encode("utf-8")
-            client_socket.sendall(header + message.encode("utf-8"))
+            client_socket.sendall(encode_message(message))
 
 
 if __name__ == "__main__":
@@ -94,8 +51,7 @@ if __name__ == "__main__":
     print(f"Connected to {SERVER_HOST}:{SERVER_PORT}")
 
     # Send the client name to the server
-    client_name_header = f"{len(client_name):<{HEADER_LENGTH}}".encode("utf-8")
-    client_socket.sendall(client_name_header + client_name.encode("utf-8"))
+    client_socket.sendall(encode_message(client_name))
 
     # Start threads for sending and receiving messages
     receive_thread = threading.Thread(

@@ -1,9 +1,10 @@
 import socket
 import select
 
+from utils import encode_message, receive_message, SYSTEM_SENDER_NAME
+
 SERVER_HOST = "localhost"
 SERVER_PORT = 8000
-HEADER_LENGTH = 10
 
 # Create a socket object
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,13 +35,18 @@ while True:
 
             # Receive the client name
             try:
-                client_name_header = client_socket.recv(HEADER_LENGTH)
-                client_name_length = int(client_name_header.decode("utf-8").strip())
-                client_name = client_socket.recv(client_name_length).decode("utf-8")
+                client_name = receive_message(client_socket)
                 clients[client_socket] = (client_address, client_name)
                 print(
                     f"Accepted new connection from {client_address} (Client: {client_name})"
                 )
+
+                # # Send welcome message to the newly connected client
+                welcome_message = (
+                    f"{SYSTEM_SENDER_NAME}: Welcome to the chatroom, {client_name}!"
+                )
+                client_socket.sendall(encode_message(welcome_message))
+
             except BlockingIOError:
                 # Handle the blocking error by skipping this client
                 sockets_list.remove(client_socket)
@@ -53,28 +59,22 @@ while True:
         else:
             # Receive data from the client
             try:
-                header = notified_socket.recv(HEADER_LENGTH)
-                if not header:
+
+                message = receive_message(notified_socket)
+                if message is False:
                     # Client disconnected
                     sockets_list.remove(notified_socket)
                     del clients[notified_socket]
                     continue
 
-                message_length = int(header.decode("utf-8").strip())
-                message = notified_socket.recv(message_length)
-
                 # Broadcast the message to all other clients
                 client_address, client_name = clients[notified_socket]
-                broadcast_message = f"{client_name}: {message.decode('utf-8')}"
-                broadcast_header = f"{len(broadcast_message):<{HEADER_LENGTH}}".encode(
-                    "utf-8"
-                )
+                broadcast_message = f"{client_name}: {message}"
+                encoded_message = encode_message(broadcast_message)
                 for client_socket in clients:
                     if client_socket != notified_socket:
                         try:
-                            client_socket.sendall(
-                                broadcast_header + broadcast_message.encode("utf-8")
-                            )
+                            client_socket.sendall(encoded_message)
                         except BlockingIOError:
                             # Handle the blocking error by skipping this client
                             sockets_list.remove(client_socket)
