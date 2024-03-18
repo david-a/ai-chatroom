@@ -11,59 +11,52 @@ from lib.utils import (
 )
 
 
-SERVER_HOST = "localhost"
-SERVER_PORT = 8000
+class Client:
+    def __init__(self, server_host="localhost", server_port=8000):
+        self.server_host = server_host
+        self.server_port = server_port
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((self.server_host, self.server_port))
+        print(f"Connected to {self.server_host}:{self.server_port}")
 
+        if len(sys.argv) > 1:
+            self.client_name = sys.argv[1]
+        else:
+            self.client_name = f"Client-{generate_random_string()}"
 
-def receive_messages(client_socket):
-    while True:
-        try:
-            message = receive_message(client_socket)
-            if message is False:
-                print("Connection closed by the server")
+        self.client_socket.sendall(encode_message(self.client_name))
+
+        self.receive_thread = threading.Thread(target=self.receive_messages)
+        self.send_thread = threading.Thread(target=self.send_messages)
+
+    def start(self):
+        self.receive_thread.start()
+        self.send_thread.start()
+        self.receive_thread.join()
+        self.send_thread.join()
+        self.client_socket.close()
+
+    def receive_messages(self):
+        while True:
+            try:
+                message = receive_message(self.client_socket)
+                if message is False:
+                    print("Connection closed by the server")
+                    break
+
+                print(sender_colored_message(*deserialize_message(message)))
+
+            except Exception as e:
+                print(f"Error receiving message: {e}")
                 break
 
-            print(sender_colored_message(*deserialize_message(message)))
-
-        except Exception as e:
-            print(f"Error receiving message: {e}")
-            break
-
-
-def send_messages(client_socket):
-    while True:
-        message = input()
-        if message:
-            client_socket.sendall(encode_message(message))
+    def send_messages(self):
+        while True:
+            message = input()
+            if message:
+                self.client_socket.sendall(encode_message(message))
 
 
 if __name__ == "__main__":
-    # Get the client name from command line argument or use a default name
-    if len(sys.argv) > 1:
-        client_name = sys.argv[1]
-    else:
-        client_name = f"Client-{generate_random_string()}"
-
-    # Create a socket object
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # Connect to the server
-    client_socket.connect((SERVER_HOST, SERVER_PORT))
-    print(f"Connected to {SERVER_HOST}:{SERVER_PORT}")
-
-    # Send the client name to the server
-    client_socket.sendall(encode_message(client_name))
-
-    # Start threads for sending and receiving messages
-    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    send_thread = threading.Thread(target=send_messages, args=(client_socket,))
-
-    receive_thread.start()
-    send_thread.start()
-
-    # Wait for threads to finish
-    receive_thread.join()
-    send_thread.join()
-
-    # Close the socket
-    client_socket.close()
+    client = Client()
+    client.start()
