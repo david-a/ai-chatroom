@@ -22,7 +22,11 @@ class Client:
         self.retry_delay = retry_delay
         self.client_socket = None
         self.connected = False
-        self.connect()
+        if len(sys.argv) > 1:
+            self.client_name = sys.argv[1]
+        else:
+            self.client_name = f"user-{generate_random_string()}"
+        self.connect_and_register()
 
     def connect(self):
         retries = 0
@@ -32,16 +36,6 @@ class Client:
                 self.client_socket.connect((self.server_host, self.server_port))
                 print(f"Connected to {self.server_host}:{self.server_port}")
                 self.connected = True
-                if len(sys.argv) > 1:
-                    self.client_name = sys.argv[1]
-                else:
-                    self.client_name = f"user-{generate_random_string()}"
-
-                self.client_socket.sendall(encode_message(self.client_name))
-                time.sleep(0.1)
-                self.receive_thread = threading.Thread(target=self.receive_messages)
-                time.sleep(0.1)
-                self.send_thread = threading.Thread(target=self.send_messages)
                 break
             except Exception as e:
                 retries += 1
@@ -53,6 +47,21 @@ class Client:
                     print("Maximum retries reached. Exiting...")
                     return
 
+    def register(self):
+        self.client_socket.sendall(encode_message(self.client_name))
+        time.sleep(0.1)
+        self.receive_thread = threading.Thread(target=self.receive_messages)
+        time.sleep(0.1)
+        self.send_thread = threading.Thread(target=self.send_messages)
+
+    def connect_and_register(self):
+        self.connect()
+        if self.connected:
+            self.register()
+            return True
+        else:
+            return False
+
     def start(self):
         self.receive_thread.start()
         self.send_thread.start()
@@ -63,8 +72,7 @@ class Client:
     def receive_messages(self):
         while True:
             if not self.connected:
-                self.connect()
-                if not self.connected:
+                if not self.connect_and_register():
                     break
             try:
                 message = receive_message(self.client_socket)

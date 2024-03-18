@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 
+from client import Client
 from lib.ai_utils import ai_call
 from lib.utils import (
     deserialize_message,
@@ -20,20 +21,25 @@ SYSTEM_PROMPT_DISRUPT = (
 )
 
 
-class AIClient:
-    def __init__(self, server_host="localhost", server_port=8000):
+class AIClient(Client):
+    def __init__(
+        self, server_host="localhost", server_port=8000, max_retries=5, retry_delay=1
+    ):
         self.server_host = server_host
         self.server_port = server_port
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((self.server_host, self.server_port))
-        print(f"Connected to {self.server_host}:{self.server_port}")
-
-        self.client_name = f"AI-{generate_random_string()}"
-        self.client_socket.sendall(encode_message(self.client_name))
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
 
         self.conversation_log = []
         self.mode = self.get_mode()
         self.n = self.get_n()
+
+        self.client_name = f"AI-{generate_random_string()}"
+
+        self.connect_and_register()
+
+    def register(self):
+        self.client_socket.sendall(encode_message(self.client_name))
 
         self.receive_thread = threading.Thread(target=self.receive_messages)
         if self.mode == 2:
@@ -63,11 +69,18 @@ class AIClient:
         line_count = 0
 
         while True:
+            if not self.connected:
+                if not self.connect_and_register():
+                    break
             try:
                 message = receive_message(self.client_socket)
                 if message is False:
                     print("Connection closed by the server")
-                    break
+                    self.connected = False
+                    self.client_socket.close()
+                    time.sleep(self.retry_delay)
+                    continue
+
                 self.conversation_log.append(message)
                 print(sender_colored_message(*deserialize_message(message)))
                 line_count += 1
@@ -83,14 +96,25 @@ class AIClient:
                     )
                     line_count = 0
 
+            except ConnectionResetError:
+                print("Connection reset by peer. Reconnecting...")
+                self.connected = False
+                self.client_socket.close()
+                time.sleep(self.retry_delay)
+
             except Exception as e:
                 print(f"Error receiving message: {e}")
-                break
+                self.connected = False
+                self.client_socket.close()
+                time.sleep(self.retry_delay)
 
     def send_messages(self):
         last_response_time = time.time()
 
         while True:
+            if not self.connected:
+                if not self.connect_and_register():
+                    break
             if time.time() - last_response_time >= self.n:
                 ai_response = ai_call([], SYSTEM_PROMPT_DISRUPT, self.client_name)
                 self.client_socket.sendall(encode_message(ai_response))
