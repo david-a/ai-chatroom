@@ -12,6 +12,13 @@ from lib.utils import (
     serialize_message,
 )
 
+SYSTEM_PROMPT_RESPOND = (
+    "You are a joyful chat participant. respond in the context of the conversation."
+)
+SYSTEM_PROMPT_DISRUPT = (
+    "You are a joyful chat participant. Initiate a conversation with a random sentence."
+)
+
 
 class AIClient:
     def __init__(self, server_host="localhost", server_port=8000):
@@ -54,8 +61,6 @@ class AIClient:
 
     def receive_messages(self):
         line_count = 0
-        system_prompt_respond = "You are a joyful chat participant. respond in the context of the conversation."
-        system_prompt_disrupt = "You are a joyful chat participant. Initiate a conversation with a random sentence."
 
         while True:
             try:
@@ -69,7 +74,7 @@ class AIClient:
 
                 if self.mode == 1 and line_count >= self.n:
                     ai_response = ai_call(
-                        self.conversation_log, system_prompt_respond, self.client_name
+                        self.conversation_log, SYSTEM_PROMPT_RESPOND, self.client_name
                     )
                     print(ai_response)
                     self.client_socket.sendall(encode_message(ai_response))
@@ -84,11 +89,10 @@ class AIClient:
 
     def send_messages(self):
         last_response_time = time.time()
-        system_prompt_disrupt = "You are a joyful chat participant. Initiate a conversation with a random sentence."
 
         while True:
             if time.time() - last_response_time >= self.n:
-                ai_response = ai_call([], system_prompt_disrupt, self.client_name)
+                ai_response = ai_call([], SYSTEM_PROMPT_DISRUPT, self.client_name)
                 self.client_socket.sendall(encode_message(ai_response))
                 print(ai_response)
                 self.conversation_log.append(
