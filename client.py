@@ -15,7 +15,7 @@ SERVER_HOST = "localhost"
 SERVER_PORT = 8000
 
 
-def receive_messages(client_socket, _client_name):
+def receive_messages(client_socket):
     while True:
         try:
             message = receive_message(client_socket)
@@ -30,7 +30,7 @@ def receive_messages(client_socket, _client_name):
             break
 
 
-def send_messages(client_socket, _client_name):
+def send_messages(client_socket):
     while True:
         message = input()
         if message:
@@ -55,12 +55,8 @@ if __name__ == "__main__":
     client_socket.sendall(encode_message(client_name))
 
     # Start threads for sending and receiving messages
-    receive_thread = threading.Thread(
-        target=receive_messages, args=(client_socket, client_name)
-    )
-    send_thread = threading.Thread(
-        target=send_messages, args=(client_socket, client_name)
-    )
+    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+    send_thread = threading.Thread(target=send_messages, args=(client_socket,))
 
     receive_thread.start()
     send_thread.start()
