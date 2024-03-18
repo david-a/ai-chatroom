@@ -1,7 +1,12 @@
 import socket
 import select
 
-from utils import encode_message, receive_message, SYSTEM_SENDER_NAME
+from lib.utils import (
+    encode_message,
+    receive_message,
+    SYSTEM_SENDER_NAME,
+    serialize_message,
+)
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 8000
@@ -42,8 +47,8 @@ while True:
                 )
 
                 # # Send welcome message to the newly connected client
-                welcome_message = (
-                    f"{SYSTEM_SENDER_NAME}: Welcome to the chatroom, {client_name}!"
+                welcome_message = serialize_message(
+                    SYSTEM_SENDER_NAME, f"Welcome to the chatroom, {client_name}!"
                 )
                 client_socket.sendall(encode_message(welcome_message))
 
@@ -69,7 +74,7 @@ while True:
 
                 # Broadcast the message to all other clients
                 client_address, client_name = clients[notified_socket]
-                broadcast_message = f"{client_name}: {message}"
+                broadcast_message = serialize_message(client_name, message)
                 encoded_message = encode_message(broadcast_message)
                 for client_socket in clients:
                     if client_socket != notified_socket:

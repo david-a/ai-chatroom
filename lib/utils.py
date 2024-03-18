@@ -39,7 +39,7 @@ def sender_colored_message(sender_name, message_content):
 
     sender_color = get_color_from_name(sender_name)
 
-    return color_message(f"{sender_name}: {message_content}", sender_color)
+    return color_message(serialize_message(sender_name, message_content), sender_color)
 
 
 def generate_random_string(length=5):
@@ -52,6 +52,14 @@ def get_message_length_from_header(header):
     Extracts the message length from the header.
     """
     return int(header.decode("utf-8").strip())
+
+
+def serialize_message(sender, message):
+    return f"{sender}: {message}"
+
+
+def deserialize_message(serialized_message):
+    return serialized_message.split(": ")
 
 
 def decode_message(message):

@@ -2,7 +2,8 @@ import socket
 import threading
 import sys
 
-from utils import (
+from lib.utils import (
+    deserialize_message,
     sender_colored_message,
     encode_message,
     generate_random_string,
@@ -22,7 +23,7 @@ def receive_messages(client_socket, _client_name):
                 print("Connection closed by the server")
                 break
 
-            print(sender_colored_message(*message.split(": ", 1)))
+            print(sender_colored_message(*deserialize_message(message)))
 
         except Exception as e:
             print(f"Error receiving message: {e}")

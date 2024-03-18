@@ -1,1 +1,4 @@
 colorama
+openai
+tiktoken
+python-dotenv
