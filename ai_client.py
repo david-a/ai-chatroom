@@ -23,16 +23,23 @@ SYSTEM_PROMPT_DISRUPT = (
 
 class AIClient(Client):
     def __init__(
-        self, server_host="localhost", server_port=8000, max_retries=5, retry_delay=1
+        self,
+        server_host="localhost",
+        server_port=8000,
+        max_retries=5,
+        retry_delay=1,
+        mode=None,
+        n=None,
     ):
         self.server_host = server_host
         self.server_port = server_port
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.connected = False
 
         self.conversation_log = []
-        self.mode = self.get_mode()
-        self.n = self.get_n()
+        self.mode = mode or self.get_mode()
+        self.n = n or self.get_n()
 
         self.client_name = f"AI-{generate_random_string()}"
 

@@ -1,7 +1,10 @@
+import errno
 import hashlib
 import random
+import socket
 import string
 from colorama import Fore, Style
+import time
 
 HEADER_LENGTH = 10
 SYSTEM_SENDER_NAME = "System"
@@ -78,14 +81,31 @@ def encode_message(message):
     return header + message.encode("utf-8")
 
 
-def receive_message(socket):
+def receive_message(sckt):
     """
     Receives a message from the server.
     """
-    header = socket.recv(HEADER_LENGTH)
-    if not header:
-        return False
+    max_retries = 3
+    retry_delay = 1
 
-    message = socket.recv(get_message_length_from_header(header))
+    for i in range(max_retries):
+        try:
+            header = sckt.recv(HEADER_LENGTH)
+            if not header:
+                return False
 
-    return decode_message(message)
+            message = sckt.recv(get_message_length_from_header(header))
+
+            return decode_message(message)
+        except socket.error as e:
+            if e.args[0] == errno.EAGAIN or e.args[0] == errno.EWOULDBLOCK:
+                print(
+                    "No data available." + " Retrying..." if i < max_retries - 1 else ""
+                )
+                time.sleep(retry_delay)
+            else:
+                # a "real" error occurred
+                print(f"Error: {e}")
+                return False
+
+    return False
